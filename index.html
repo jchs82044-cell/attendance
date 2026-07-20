@@ -3,57 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>온라인 출석부</title>
+    <title> 온라인 출석부 (2-7)</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; text-align: center; }
-        select, input, button { padding: 10px; margin: 10px; width: 80%; font-size: 16px; }
-        button { background-color: #2ea44f; color: white; border: none; cursor: pointer; font-weight: bold; }
-        button:hover { background-color: #2c974b; }
-        #log { margin-top: 20px; text-align: left; background: #f6f8fa; padding: 15px; border-radius: 5px; }
-        .present { color: green; font-weight: bold; }
-        .absent { color: red; }
+        body { font-family: 'Malgun Gothic', sans-serif; max-width: 600px; margin: 30px auto; padding: 20px; background: #f8f9fa; color: #333; }
+        .card { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2, h3 { margin-top: 0; color: #222; }
+        
+        /* 토큰 설정 영역 스타일 */
+        .config-area { background: #f1f3f5; padding: 15px; border-radius: 6px; font-size: 14px; margin-bottom: 20px; text-align: left; }
+        .config-area input { width: calc(100% - 110px); padding: 8px; box-sizing: border-box; }
+        .btn-save { padding: 8px 15px; background: #495057; color: white; border: none; cursor: pointer; border-radius: 4px; }
+        
+        /* 출석 체크 제어 영역 */
+        select { padding: 12px; width: 70%; font-size: 16px; border-radius: 6px; border: 1px solid #ced4da; }
+        .btn-check { padding: 12px 20px; background-color: #2ea44f; color: white; border: none; cursor: pointer; font-size: 16px; font-weight: bold; border-radius: 6px; width: 25%; float: right; }
+        .btn-check:hover { background-color: #2c974b; }
+        
+        /* 통계 및 현황판 스타일 */
+        .stats { display: flex; justify-content: space-between; background: #e8f5e9; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-weight: bold; color: #2e7d32; }
+        ul { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        li { padding: 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; font-size: 15px; }
+        
+        .present { background: #e8f5e9; border-color: #c8e6c9; color: #2e7d32; font-weight: bold; }
+        .absent { background: #ffebee; border-color: #ffcdd2; color: #c62828; }
+        .time-badge { font-size: 11px; color: #666; font-weight: normal; block-size: fit-content; margin-left: 5px;}
+        .clearfix::after { content: ""; clear: both; display: table; }
     </style>
 </head>
 <body>
 
-    <h2>📋 2-7반 온라인 출석부</h2>
-    
-    <input type="password" id="password" placeholder="출석 비밀번호 입력">
-    <br>
-    
-    <label for="memberSelect">이름을 선택하세요:</label>
-    <select id="memberSelect">
-        <option value="">-- 명단 로딩 중 --</option>
-    </select>
-    <br>
-    
-    <button onclick="checkAttendance()">출석 체크하기</button>
+    <div class="card">
+        <h2>📋 교사용 2-7반 출석 관리 시스템</h2>
+        
+        <div class="config-area">
+            <strong>🔒 인증 설정:</strong> 
+            <input type="password" id="tokenInput" placeholder="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">
+            <button class="btn-save" onclick="saveToken()">토큰 저장</button>
+            <p style="margin: 5px 0 0 0; color: #666; font-size: 12px;">* 최초 1회만 등록하면 이 브라우저에 안전하게 기억됩니다.</p>
+        </div>
 
-    <div id="log">
-        <h3>📅 오늘 출석 현황</h3>
-        <ul id="list"></ul>
+        <div class="clearfix" style="margin-top: 25px;">
+            <select id="memberSelect">
+                <option value="">-- 명단 로딩 중 --</option>
+            </select>
+            <button class="btn-check" onclick="checkAttendance()">출석 처리</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h3>📅 오늘 출석부 현황</h3>
+        
+        <div class="stats">
+            <span id="statRatio">출석률: 0% (0 / 0명)</span>
+            <span id="statAbsent">미출석: 0명</span>
+        </div>
+        
+        <ul id="list">
+            </ul>
     </div>
 
     <script>
-        // 본인의 깃허브 정보로 변경하세요
-        const OWNER = 'jchs82044-cell'; 
-        const REPO = 'attendance';
+        // ================= Repository 환경 설정 =================
+        const OWNER = 'jchs82044-cell'; // 본인의 깃허브 ID
+        const REPO = 'attendance';       // 본인의 레포지토리 이름
         const ATTENDANCE_FILE = 'attendance.json';
         const MEMBERS_FILE = 'student.json';
-
-        // 1. 학생들이 입력할 우리 반 공통 비밀번호 설정
-        const CLASS_PASSWORD = "prototypechemistry"; 
-
-        // 2. 본인의 GitHub Personal Access Token을 'Base64'로 인코딩해서 여기에 넣으세요.
-        // (주의: 토큰을 그대로 넣으면 깃허브가 감지해서 토큰을 자동 삭제합니다!)
-        // 변환 방법: 브라우저 개발자 도구(F12) 콘솔 창에 btoa('ghp_내토큰...') 입력 후 나온 값을 넣으세요.
-        const ENCODED_GITHUB_TOKEN = 'Z2l0aHViX3BhdF8xMUJaUVVWQUkwZFZvOEhjVnNzMnpGX1lMZGpPcERCSzNHY1pmZ3pFSEdKck5nQjVxYzZmWHBnQUVHYVZxaGJMVm1ZWk9RVTIyTEh1ZWxlZHFU';
+        // =======================================================
 
         let baseApiUrl = `https://api.github.com/repos/${OWNER}/${REPO}/contents/`;
 
-        // 깃허브 파일 내용을 가져와서 텍스트로 디코딩하는 함수
+        // 로컬 스토리지에서 토큰 불러오기 및 UI 표시
+        document.addEventListener("DOMContentLoaded", () => {
+            const savedToken = localStorage.getItem("teacher_github_token");
+            if (savedToken) {
+                document.getElementById("tokenInput").value = "********";
+            }
+            init();
+        });
+
+        // 선생님 토큰 브라우저 안전 저장 함수
+        function saveToken() {
+            const token = document.getElementById("tokenInput").value;
+            if (!token || token === "********") {
+                alert("유효한 토큰 값을 입력해주세요.");
+                return;
+            }
+            localStorage.setItem("teacher_github_token", token);
+            alert("인증 토큰이 안전하게 저장되었습니다! 이제 출석 체크가 가능합니다.");
+            init();
+        }
+
+        // 토큰 가져오기 공통 함수
+        function getToken() {
+            return localStorage.getItem("teacher_github_token");
+        }
+
+        // 깃허브 파일 불러오기
         async function fetchGitHubFile(fileName) {
-            const response = await fetch(baseApiUrl + fileName);
+            const response = await fetch(baseApiUrl + fileName, {
+                headers: getToken() ? { 'Authorization': `token ${getToken()}` } : {}
+            });
             if (!response.ok) throw new Error(`${fileName} 로드 실패`);
             const data = await response.json();
             const content = decodeURIComponent(atob(data.content).split('').map(function(c) {
@@ -62,7 +111,7 @@
             return { data: JSON.parse(content), sha: data.sha };
         }
 
-        // 초기 데이터 로드 (명단과 출석 현황을 동시에 가져옴)
+        // 초기화 및 대시보드 갱신
         async function init() {
             try {
                 const membersObj = await fetchGitHubFile(MEMBERS_FILE);
@@ -71,8 +120,9 @@
                 const memberList = membersObj.data;
                 const attendanceList = attendanceObj.data;
 
+                // 1. 드롭다운 선택상자 구성
                 const selectEl = document.getElementById('memberSelect');
-                selectEl.innerHTML = '<option value="">-- 이름을 선택하세요 --</option>';
+                selectEl.innerHTML = '<option value="">-- 출석 처리할 학생 선택 --</option>';
                 
                 memberList.forEach(name => {
                     const option = document.createElement('option');
@@ -81,97 +131,101 @@
                     selectEl.appendChild(option);
                 });
 
+                // 2. 출석 현황판 및 대시보드 통계 계산
                 const listEl = document.getElementById('list');
                 listEl.innerHTML = '';
                 
                 const todayStr = new Date(new Date().getTime() + (9 * 60 * 60 * 1000)).toISOString().substring(0, 10);
-
                 const todayPresents = attendanceList
                     .filter(item => item.date.startsWith(todayStr))
                     .map(item => item.name);
 
+                let presentCount = 0;
+
                 memberList.forEach(name => {
                     const li = document.createElement('li');
                     if (todayPresents.includes(name)) {
+                        presentCount++;
                         const targetTime = attendanceList.find(item => item.name === name && item.date.startsWith(todayStr)).date.substring(11, 19);
-                        li.innerHTML = `<span class="present">[출석완료] ${name} (${targetTime})</span>`;
+                        li.className = "present";
+                        li.innerHTML = `✓ ${name} <span class="time-badge">(${targetTime})</span>`;
                     } else {
-                        li.innerHTML = `<span class="absent">[미출석] ${name}</span>`;
+                        li.className = "absent";
+                        li.innerHTML = `✗ ${name} (결석/미출석)`;
                     }
                     listEl.appendChild(li);
                 });
 
+                // 통계판 업데이트
+                const totalCount = memberList.length;
+                const absentCount = totalCount - presentCount;
+                const ratio = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
+
+                document.getElementById("statRatio").textContent = `출석률: ${ratio}% (${presentCount} / ${totalCount}명)`;
+                document.getElementById("statAbsent").textContent = `미출석: ${absentCount}명`;
+
             } catch (error) {
-                console.error('초기화 실패:', error);
-                alert('데이터를 불러오지 못했습니다. 파일명과 OWNER/REPO 설정을 확인하세요.');
+                console.error('데이터 로드 실패:', error);
             }
         }
 
-        // 출석 체크 실행 함수
+        // 선생님이 학생 출석 버튼을 눌렀을 때 실행
         async function checkAttendance() {
-            const inputPassword = document.getElementById('password').value;
+            const token = getToken();
             const name = document.getElementById('memberSelect').value;
 
-            // 비밀번호 검증
-            if (!inputPassword) {
-                alert('비밀번호를 입력해주세요!');
-                return;
-            }
-            if (inputPassword !== CLASS_PASSWORD) {
-                alert('비밀번호가 틀렸습니다!');
+            if (!token) {
+                alert('상단에 GitHub 토큰을 먼저 입력하고 저장해주세요!');
                 return;
             }
             if (!name) {
-                alert('명단에서 이름을 선택해주세요!');
+                alert('출석 처리할 학생을 선택하세요!');
                 return;
             }
 
             try {
-                // 비밀번호가 맞으면 내부에서 토큰을 디코딩하여 사용
-                const githubToken = atob(ENCODED_GITHUB_TOKEN);
-
                 const { data: currentData, sha } = await fetchGitHubFile(ATTENDANCE_FILE);
 
                 const now = new Date();
                 const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)).toISOString().replace('T', ' ').substring(0, 19);
                 const todayStr = kstTime.substring(0, 10);
 
+                // 중복 체크
                 const isAlreadyPresent = currentData.some(item => item.name === name && item.date.startsWith(todayStr));
                 if (isAlreadyPresent) {
-                    alert(`${name}님은 오늘 이미 출석하셨습니다!`);
+                    alert(`${name} 학생은 이미 오늘 출석 처리되어 있습니다.`);
                     return;
                 }
 
+                // 데이터 반영
                 currentData.push({ name: name, date: kstTime });
 
+                // GitHub 업데이트 API 전송
                 const updateRes = await fetch(baseApiUrl + ATTENDANCE_FILE, {
                     method: 'PUT',
                     headers: {
-                        'Authorization': `token ${githubToken}`, // 복호화된 토큰 사용
+                        'Authorization': `token ${token}`,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        message: `📢 [출석] ${name} (${kstTime})`,
+                        message: `✏️ [교사수동출석] ${name} (${kstTime})`,
                         content: btoa(unescape(encodeURIComponent(JSON.stringify(currentData, null, 2)))),
                         sha: sha
                     })
                 });
 
                 if (updateRes.status === 200 || updateRes.status === 201) {
-                    alert(`${name}님, 오늘 출석이 완료되었습니다!`);
-                    document.getElementById('password').value = ''; // 입력창 비우기
-                    init(); 
+                    alert(`${name} 학생 출석 처리가 완료되었습니다.`);
+                    init(); // 리로드하여 대시보드 갱신
                 } else {
-                    alert('출석 저장 실패! 토큰 설정이나 권한을 확인하세요.');
+                    alert('저장 실패! GitHub 토큰 권한(contents:write)을 확인해 주세요.');
                 }
 
             } catch (error) {
                 console.error(error);
-                alert('오류가 발생했습니다. 콘솔 창을 확인하세요.');
+                alert('오류가 발생했습니다. 토큰 값이 올바른지 확인하세요.');
             }
         }
-
-        init();
     </script>
 </body>
 </html>
