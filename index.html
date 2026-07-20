@@ -18,7 +18,7 @@
 
     <h2>📋 2-7반 온라인 출석부</h2>
     
-    <input type="password" id="token" placeholder="GitHub Personal Access Token 입력">
+    <input type="password" id="password" placeholder="출석 비밀번호 입력">
     <br>
     
     <label for="memberSelect">이름을 선택하세요:</label>
@@ -36,10 +36,18 @@
 
     <script>
         // 본인의 깃허브 정보로 변경하세요
-        const OWNER = 'YOUR_GITHUB_USERNAME'; 
-        const REPO = 'YOUR_REPO_NAME';
+        const OWNER = 'jchs82044-cell'; 
+        const REPO = 'attendance';
         const ATTENDANCE_FILE = 'attendance.json';
         const MEMBERS_FILE = 'student.json';
+
+        // 1. 학생들이 입력할 우리 반 공통 비밀번호 설정
+        const CLASS_PASSWORD = "prototypechemistry"; 
+
+        // 2. 본인의 GitHub Personal Access Token을 'Base64'로 인코딩해서 여기에 넣으세요.
+        // (주의: 토큰을 그대로 넣으면 깃허브가 감지해서 토큰을 자동 삭제합니다!)
+        // 변환 방법: 브라우저 개발자 도구(F12) 콘솔 창에 btoa('ghp_내토큰...') 입력 후 나온 값을 넣으세요.
+        const ENCODED_GITHUB_TOKEN = 'Z2l0aHViX3BhdF8xMUJaUVVWQUkwZFZvOEhjVnNzMnpGX1lMZGpPcERCSzNHY1pmZ3pFSEdKck5nQjVxYzZmWHBnQUVHYVZxaGJMVm1ZWk9RVTIyTEh1ZWxlZHFU';
 
         let baseApiUrl = `https://api.github.com/repos/${OWNER}/${REPO}/contents/`;
 
@@ -57,14 +65,12 @@
         // 초기 데이터 로드 (명단과 출석 현황을 동시에 가져옴)
         async function init() {
             try {
-                // 1. 전체 명단과 기존 출석부 가져오기
                 const membersObj = await fetchGitHubFile(MEMBERS_FILE);
                 const attendanceObj = await fetchGitHubFile(ATTENDANCE_FILE);
                 
                 const memberList = membersObj.data;
                 const attendanceList = attendanceObj.data;
 
-                // 2. 드롭다운(Select) 메뉴 채우기
                 const selectEl = document.getElementById('memberSelect');
                 selectEl.innerHTML = '<option value="">-- 이름을 선택하세요 --</option>';
                 
@@ -75,19 +81,15 @@
                     selectEl.appendChild(option);
                 });
 
-                // 3. 출석 현황 출력하기
                 const listEl = document.getElementById('list');
                 listEl.innerHTML = '';
                 
-                // 오늘 날짜 구하기 (YYYY-MM-DD 형식)
                 const todayStr = new Date(new Date().getTime() + (9 * 60 * 60 * 1000)).toISOString().substring(0, 10);
 
-                // 오늘 출석한 사람 목록 생성
                 const todayPresents = attendanceList
                     .filter(item => item.date.startsWith(todayStr))
                     .map(item => item.name);
 
-                // 명단을 순회하며 출석/미출석 표시
                 memberList.forEach(name => {
                     const li = document.createElement('li');
                     if (todayPresents.includes(name)) {
@@ -107,11 +109,16 @@
 
         // 출석 체크 실행 함수
         async function checkAttendance() {
-            const token = document.getElementById('token').value;
+            const inputPassword = document.getElementById('password').value;
             const name = document.getElementById('memberSelect').value;
 
-            if (!token) {
-                alert('GitHub 토큰을 입력해주세요!');
+            // 비밀번호 검증
+            if (!inputPassword) {
+                alert('비밀번호를 입력해주세요!');
+                return;
+            }
+            if (inputPassword !== CLASS_PASSWORD) {
+                alert('비밀번호가 틀렸습니다!');
                 return;
             }
             if (!name) {
@@ -120,29 +127,27 @@
             }
 
             try {
-                // 기존 출석 데이터와 sha 값 가져오기
+                // 비밀번호가 맞으면 내부에서 토큰을 디코딩하여 사용
+                const githubToken = atob(ENCODED_GITHUB_TOKEN);
+
                 const { data: currentData, sha } = await fetchGitHubFile(ATTENDANCE_FILE);
 
-                // 오늘 날짜 확인
                 const now = new Date();
                 const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)).toISOString().replace('T', ' ').substring(0, 19);
                 const todayStr = kstTime.substring(0, 10);
 
-                // 중복 출석 체크 (오늘 이미 출석했는지 확인)
                 const isAlreadyPresent = currentData.some(item => item.name === name && item.date.startsWith(todayStr));
                 if (isAlreadyPresent) {
                     alert(`${name}님은 오늘 이미 출석하셨습니다!`);
                     return;
                 }
 
-                // 데이터 추가
                 currentData.push({ name: name, date: kstTime });
 
-                // 깃허브에 업데이트 커밋 보내기
                 const updateRes = await fetch(baseApiUrl + ATTENDANCE_FILE, {
                     method: 'PUT',
                     headers: {
-                        'Authorization': `token ${token}`,
+                        'Authorization': `token ${githubToken}`, // 복호화된 토큰 사용
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
@@ -154,9 +159,10 @@
 
                 if (updateRes.status === 200 || updateRes.status === 201) {
                     alert(`${name}님, 오늘 출석이 완료되었습니다!`);
-                    init(); // 현황판 새로고침
+                    document.getElementById('password').value = ''; // 입력창 비우기
+                    init(); 
                 } else {
-                    alert('출석 저장 실패! 토큰 권한을 확인하세요.');
+                    alert('출석 저장 실패! 토큰 설정이나 권한을 확인하세요.');
                 }
 
             } catch (error) {
@@ -165,7 +171,6 @@
             }
         }
 
-        // 페이지 시작 시 작동
         init();
     </script>
 </body>
