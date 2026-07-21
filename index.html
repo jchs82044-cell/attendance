@@ -1,231 +1,279 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> 온라인 출석부 (2-7)</title>
-    <style>
-        body { font-family: 'Malgun Gothic', sans-serif; max-width: 600px; margin: 30px auto; padding: 20px; background: #f8f9fa; color: #333; }
-        .card { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        h2, h3 { margin-top: 0; color: #222; }
-        
-        /* 토큰 설정 영역 스타일 */
-        .config-area { background: #f1f3f5; padding: 15px; border-radius: 6px; font-size: 14px; margin-bottom: 20px; text-align: left; }
-        .config-area input { width: calc(100% - 110px); padding: 8px; box-sizing: border-box; }
-        .btn-save { padding: 8px 15px; background: #495057; color: white; border: none; cursor: pointer; border-radius: 4px; }
-        
-        /* 출석 체크 제어 영역 */
-        select { padding: 12px; width: 70%; font-size: 16px; border-radius: 6px; border: 1px solid #ced4da; }
-        .btn-check { padding: 12px 20px; background-color: #2ea44f; color: white; border: none; cursor: pointer; font-size: 16px; font-weight: bold; border-radius: 6px; width: 25%; float: right; }
-        .btn-check:hover { background-color: #2c974b; }
-        
-        /* 통계 및 현황판 스타일 */
-        .stats { display: flex; justify-content: space-between; background: #e8f5e9; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-weight: bold; color: #2e7d32; }
-        ul { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        li { padding: 10px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; font-size: 15px; }
-        
-        .present { background: #e8f5e9; border-color: #c8e6c9; color: #2e7d32; font-weight: bold; }
-        .absent { background: #ffebee; border-color: #ffcdd2; color: #c62828; }
-        .time-badge { font-size: 11px; color: #666; font-weight: normal; block-size: fit-content; margin-left: 5px;}
-        .clearfix::after { content: ""; clear: both; display: table; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>온라인 출석부</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', sans-serif; }
+    body { background-color: #f4f6f8; color: #333; padding: 20px; display: flex; justify-content: center; }
+    .container { width: 100%; max-width: 800px; background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); }
+    
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #edf2f7; padding-bottom: 15px; }
+    h1 { font-size: 1.4rem; color: #1a252f; }
+    
+    /* 버튼 스타일 */
+    button { padding: 9px 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 0.9rem; }
+    .btn-submit { background-color: #3182ce; color: white; width: 100%; margin-top: 10px; }
+    .btn-submit:hover { background-color: #2b6cb0; }
+    .btn-admin { background-color: #4a5568; color: white; }
+    .btn-admin:hover { background-color: #2d3748; }
+    .btn-lock { background-color: #e53e3e; color: white; }
+    .btn-lock:hover { background-color: #c53030; }
+
+    /* 입력 폼 */
+    .form-group { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #e2e8f0; }
+    .form-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+    input, select { padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 0.95rem; }
+    
+    /* 선택 상자 비율 조정 */
+    .select-student { flex: 2 1 180px; }
+    .select-status { flex: 1 1 100px; }
+    .input-reason { flex: 1 1 100%; }
+
+    /* 관리자 영역 */
+    #adminPanel { display: none; margin-top: 20px; border-top: 2px dashed #e2e8f0; padding-top: 20px; }
+    
+    /* 테이블 */
+    .table-container { overflow-x: auto; margin-top: 10px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem; }
+    th { background-color: #edf2f7; color: #4a5568; }
+
+    /* 뱃지 */
+    .badge { padding: 3px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+    .badge-present { background: #c6f6d5; color: #22543d; }
+    .badge-absent { background: #fed7d7; color: #742a2a; }
+    .badge-late { background: #feebc8; color: #744210; }
+
+    .btn-delete { background-color: #e53e3e; color: white; padding: 4px 8px; font-size: 0.75rem; }
+    .actions { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; }
+    .btn-export { background-color: #38a169; color: white; }
+  </style>
 </head>
 <body>
 
-    <div class="card">
-        <h2>📋 교사용 2-7반 출석 관리 시스템</h2>
-        
-        <div class="config-area">
-            <strong>🔒 인증 설정:</strong> 
-            <input type="password" id="tokenInput" placeholder="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">
-            <button class="btn-save" onclick="saveToken()">토큰 저장</button>
-            <p style="margin: 5px 0 0 0; color: #666; font-size: 12px;">* 최초 1회만 등록하면 이 브라우저에 안전하게 기억됩니다.</p>
-        </div>
-
-        <div class="clearfix" style="margin-top: 25px;">
-            <select id="memberSelect">
-                <option value="">-- 명단 로딩 중 --</option>
-            </select>
-            <button class="btn-check" onclick="checkAttendance()">출석 처리</button>
-        </div>
+  <div class="container">
+    <div class="header">
+      <h1>📋 온라인 출석 제출 시스템</h1>
+      <button id="adminToggleBtn" class="btn-admin" onclick="toggleAdminMode()">🔒 선생님 로그인</button>
     </div>
 
-    <div class="card">
-        <h3>📅 오늘 출석부 현황</h3>
+    <div class="form-group">
+      <h3 style="margin-bottom: 12px; font-size: 1.05rem; color: #2d3748;">✏️ 출석 정보 작성</h3>
+      <div class="form-row">
+        <select id="studentSelect" class="select-student">
+          <option value="">-- 이름 선택 --</option>
+        </select>
         
-        <div class="stats">
-            <span id="statRatio">출석률: 0% (0 / 0명)</span>
-            <span id="statAbsent">미출석: 0명</span>
-        </div>
-        
-        <ul id="list">
-            </ul>
+        <select id="attendanceStatus" class="select-status">
+          <option value="출석">출석</option>
+          <option value="결석">결석</option>
+          <option value="지각">지각</option>
+          <option value="조퇴">조퇴</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <input type="text" id="disqualifyReason" class="input-reason" placeholder="사유 / 결격 사유 (선택 입력)">
+      </div>
+      <button class="btn-submit" onclick="addRecord()">출석 제출하기</button>
     </div>
 
-    <script>
-        // ================= Repository 환경 설정 =================
-        const OWNER = 'jchs82044-cell'; // 본인의 깃허브 ID
-        const REPO = 'attendance';       // 본인의 레포지토리 이름
-        const ATTENDANCE_FILE = 'attendance.json';
-        const MEMBERS_FILE = 'student.json';
-        // =======================================================
+    <div id="adminPanel">
+      <h3 style="color: #2b6cb0; margin-bottom: 10px;">🔓 관리자 전용 - 전체 출석 현황</h3>
+      
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>일시</th>
+              <th>이름</th>
+              <th>상태</th>
+              <th>결격 및 제출 사유</th>
+              <th>관리</th>
+            </tr>
+          </thead>
+          <tbody id="attendanceList">
+            </tbody>
+        </table>
+      </div>
 
-        let baseApiUrl = `https://api.github.com/repos/${OWNER}/${REPO}/contents/`;
+      <div class="actions">
+        <button class="btn-export" onclick="exportToCSV()">Excel/CSV로 내보내기</button>
+        <button class="btn-delete" onclick="clearAllData()">전체 데이터 초기화</button>
+      </div>
+    </div>
+  </div>
 
-        // 로컬 스토리지에서 토큰 불러오기 및 UI 표시
-        document.addEventListener("DOMContentLoaded", () => {
-            const savedToken = localStorage.getItem("teacher_github_token");
-            if (savedToken) {
-                document.getElementById("tokenInput").value = "********";
-            }
-            init();
-        });
+  <script>
+    // -------------------------------------------------------------
+    // 📝 1. 학생 명단 설정 (여기서 이름들을 수정/추가하세요)
+    // -------------------------------------------------------------
+    const STUDENT_LIST = [
+      "김동범", "김보윤", "김영현", "김용연", "김지연",
+      "김태성", "김태연", “나도연", "박건호", "박시율", ”박재민“ , ”박지민“ , ”손채민“ , ”신지윤“ , ”신희제“ , ”양현진“ , ”옥채은“ , ”원서윤“ , ”윤관열“ , ”이민기“ , ”이승근“ , ”이재서“ , ”이준서“ , ”장근우“ , ”정준희“ , ”정혜원“ , ”지서준“ , ”하은수“ , ”홍석진“   ];
 
-        // 선생님 토큰 브라우저 안전 저장 함수
-        function saveToken() {
-            const token = document.getElementById("tokenInput").value;
-            if (!token || token === "********") {
-                alert("유효한 토큰 값을 입력해주세요.");
-                return;
-            }
-            localStorage.setItem("teacher_github_token", token);
-            alert("인증 토큰이 안전하게 저장되었습니다! 이제 출석 체크가 가능합니다.");
-            init();
+    // 🔑 2. 선생님 관리자 비밀번호
+    const ADMIN_PASSWORD = "prototype1!"; 
+    
+    let isAdminLoggedIn = false;
+
+    // 페이지 로드 시 학생 목록 채우기
+    document.addEventListener("DOMContentLoaded", () => {
+      initStudentSelect();
+    });
+
+    // 학생 명단을 <select> 옵션에 등록하는 함수
+    function initStudentSelect() {
+      const select = document.getElementById("studentSelect");
+      
+      // 이름순으로 정렬
+      STUDENT_LIST.sort().forEach(name => {
+        const option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+      });
+    }
+
+    // 관리자 모드 토글 (비밀번호 확인)
+    function toggleAdminMode() {
+      const toggleBtn = document.getElementById("adminToggleBtn");
+      const adminPanel = document.getElementById("adminPanel");
+
+      if (isAdminLoggedIn) {
+        isAdminLoggedIn = false;
+        adminPanel.style.display = "none";
+        toggleBtn.innerText = "🔒 선생님 로그인";
+        toggleBtn.className = "btn-admin";
+      } else {
+        const inputPw = prompt("선생님 전용 관리자 암호를 입력하세요:");
+        if (inputPw === ADMIN_PASSWORD) {
+          isAdminLoggedIn = true;
+          adminPanel.style.display = "block";
+          toggleBtn.innerText = "🔓 관리자 잠그기";
+          toggleBtn.className = "btn-lock";
+          renderRecords();
+        } else if (inputPw !== null) {
+          alert("비밀번호가 올바르지 않습니다.");
         }
+      }
+    }
 
-        // 토큰 가져오기 공통 함수
-        function getToken() {
-            return localStorage.getItem("teacher_github_token");
-        }
+    // 출석 등록 처리
+    function addRecord() {
+      const studentSelect = document.getElementById("studentSelect");
+      const statusInput = document.getElementById("attendanceStatus");
+      const reasonInput = document.getElementById("disqualifyReason");
 
-        // 깃허브 파일 불러오기
-        async function fetchGitHubFile(fileName) {
-            const response = await fetch(baseApiUrl + fileName, {
-                headers: getToken() ? { 'Authorization': `token ${getToken()}` } : {}
-            });
-            if (!response.ok) throw new Error(`${fileName} 로드 실패`);
-            const data = await response.json();
-            const content = decodeURIComponent(atob(data.content).split('').map(function(c) {
-                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-            }).join(''));
-            return { data: JSON.parse(content), sha: data.sha };
-        }
+      const name = studentSelect.value;
+      const status = statusInput.value;
+      const reason = reasonInput.value.trim() || "-";
 
-        // 초기화 및 대시보드 갱신
-        async function init() {
-            try {
-                const membersObj = await fetchGitHubFile(MEMBERS_FILE);
-                const attendanceObj = await fetchGitHubFile(ATTENDANCE_FILE);
-                
-                const memberList = membersObj.data;
-                const attendanceList = attendanceObj.data;
+      if (!name) {
+        alert("학생 이름을 목록에서 선택해 주세요.");
+        return;
+      }
 
-                // 1. 드롭다운 선택상자 구성
-                const selectEl = document.getElementById('memberSelect');
-                selectEl.innerHTML = '<option value="">-- 출석 처리할 학생 선택 --</option>';
-                
-                memberList.forEach(name => {
-                    const option = document.createElement('option');
-                    option.value = name;
-                    option.textContent = name;
-                    selectEl.appendChild(option);
-                });
+      const now = new Date();
+      const timestamp = now.toLocaleDateString('ko-KR') + ' ' + now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
 
-                // 2. 출석 현황판 및 대시보드 통계 계산
-                const listEl = document.getElementById('list');
-                listEl.innerHTML = '';
-                
-                const todayStr = new Date(new Date().getTime() + (9 * 60 * 60 * 1000)).toISOString().substring(0, 10);
-                const todayPresents = attendanceList
-                    .filter(item => item.date.startsWith(todayStr))
-                    .map(item => item.name);
+      const record = {
+        id: Date.now(),
+        timestamp,
+        name,
+        status,
+        reason
+      };
 
-                let presentCount = 0;
+      let records = getStoredRecords();
+      records.push(record);
+      localStorage.setItem("attendanceRecords", JSON.stringify(records));
 
-                memberList.forEach(name => {
-                    const li = document.createElement('li');
-                    if (todayPresents.includes(name)) {
-                        presentCount++;
-                        const targetTime = attendanceList.find(item => item.name === name && item.date.startsWith(todayStr)).date.substring(11, 19);
-                        li.className = "present";
-                        li.innerHTML = `✓ ${name} <span class="time-badge">(${targetTime})</span>`;
-                    } else {
-                        li.className = "absent";
-                        li.innerHTML = `✗ ${name} (결석/미출석)`;
-                    }
-                    listEl.appendChild(li);
-                });
+      // 선택 창 초기화
+      studentSelect.value = "";
+      reasonInput.value = "";
 
-                // 통계판 업데이트
-                const totalCount = memberList.length;
-                const absentCount = totalCount - presentCount;
-                const ratio = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
+      alert(`${name} 학생의 출석이 등록되었습니다.`);
 
-                document.getElementById("statRatio").textContent = `출석률: ${ratio}% (${presentCount} / ${totalCount}명)`;
-                document.getElementById("statAbsent").textContent = `미출석: ${absentCount}명`;
+      if (isAdminLoggedIn) {
+        renderRecords();
+      }
+    }
 
-            } catch (error) {
-                console.error('데이터 로드 실패:', error);
-            }
-        }
+    function getStoredRecords() {
+      const stored = localStorage.getItem("attendanceRecords");
+      return stored ? JSON.parse(stored) : [];
+    }
 
-        // 선생님이 학생 출석 버튼을 눌렀을 때 실행
-        async function checkAttendance() {
-            const token = getToken();
-            const name = document.getElementById('memberSelect').value;
+    // 목록 출력
+    function renderRecords() {
+      if (!isAdminLoggedIn) return;
 
-            if (!token) {
-                alert('상단에 GitHub 토큰을 먼저 입력하고 저장해주세요!');
-                return;
-            }
-            if (!name) {
-                alert('출석 처리할 학생을 선택하세요!');
-                return;
-            }
+      const listElement = document.getElementById("attendanceList");
+      const records = getStoredRecords();
 
-            try {
-                const { data: currentData, sha } = await fetchGitHubFile(ATTENDANCE_FILE);
+      listElement.innerHTML = "";
 
-                const now = new Date();
-                const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000)).toISOString().replace('T', ' ').substring(0, 19);
-                const todayStr = kstTime.substring(0, 10);
+      if (records.length === 0) {
+        listElement.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#a0aec0;">제출된 출석 정보가 없습니다.</td></tr>`;
+        return;
+      }
 
-                // 중복 체크
-                const isAlreadyPresent = currentData.some(item => item.name === name && item.date.startsWith(todayStr));
-                if (isAlreadyPresent) {
-                    alert(`${name} 학생은 이미 오늘 출석 처리되어 있습니다.`);
-                    return;
-                }
+      records.forEach(record => {
+        let badgeClass = "badge-present";
+        if (record.status === "결석") badgeClass = "badge-absent";
+        if (record.status === "지각" || record.status === "조퇴") badgeClass = "badge-late";
 
-                // 데이터 반영
-                currentData.push({ name: name, date: kstTime });
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${record.timestamp}</td>
+          <td><strong>${record.name}</strong></td>
+          <td><span class="badge ${badgeClass}">${record.status}</span></td>
+          <td>${record.reason}</td>
+          <td><button class="btn-delete" onclick="deleteRecord(${record.id})">삭제</button></td>
+        `;
+        listElement.appendChild(tr);
+      });
+    }
 
-                // GitHub 업데이트 API 전송
-                const updateRes = await fetch(baseApiUrl + ATTENDANCE_FILE, {
-                    method: 'PUT',
-                    headers: {
-                        'Authorization': `token ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        message: `✏️ [교사수동출석] ${name} (${kstTime})`,
-                        content: btoa(unescape(encodeURIComponent(JSON.stringify(currentData, null, 2)))),
-                        sha: sha
-                    })
-                });
+    function deleteRecord(id) {
+      if (confirm("해당 기록을 삭제하시겠습니까?")) {
+        let records = getStoredRecords();
+        records = records.filter(r => r.id !== id);
+        localStorage.setItem("attendanceRecords", JSON.stringify(records));
+        renderRecords();
+      }
+    }
 
-                if (updateRes.status === 200 || updateRes.status === 201) {
-                    alert(`${name} 학생 출석 처리가 완료되었습니다.`);
-                    init(); // 리로드하여 대시보드 갱신
-                } else {
-                    alert('저장 실패! GitHub 토큰 권한(contents:write)을 확인해 주세요.');
-                }
+    function clearAllData() {
+      if (confirm("경고: 모든 출석 데이터가 삭제됩니다. 계속 진행하시겠습니까?")) {
+        localStorage.removeItem("attendanceRecords");
+        renderRecords();
+      }
+    }
 
-            } catch (error) {
-                console.error(error);
-                alert('오류가 발생했습니다. 토큰 값이 올바른지 확인하세요.');
-            }
-        }
-    </script>
+    function exportToCSV() {
+      const records = getStoredRecords();
+      if (records.length === 0) {
+        alert("내보낼 데이터가 없습니다.");
+        return;
+      }
+
+      let csvContent = "\uFEFF일시,이름,상태,사유\n";
+      records.forEach(r => {
+        csvContent += `"${r.timestamp}","${r.name}","${r.status}","${r.reason}"\n`;
+      });
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `출석부_기록_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  </script>
 </body>
 </html>
